@@ -1,0 +1,5 @@
+{
+  "name": "Sales Commission Tracker",
+  "description": "An application to track sales goals and calculate commissions for salespeople. It allows setting a store goal, logging daily individual and store sales, and automatically calculates the final commission based on store performance and a tiered individual sales table.",
+  "requestFramePermissions": []
+}
