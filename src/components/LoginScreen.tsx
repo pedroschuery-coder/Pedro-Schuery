@@ -1,8 +1,13 @@
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "../integrations/supabase/client";
+import { useEffect } from "react"; // Importar useEffect
 
 export default function LoginScreen() {
+  useEffect(() => {
+    console.log("LoginScreen: Redirect URL being used:", window.location.origin);
+  }, []);
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-slate-900 text-white">
       <div className="text-center p-8 bg-slate-800/50 rounded-xl border border-slate-700/50 shadow-lg">

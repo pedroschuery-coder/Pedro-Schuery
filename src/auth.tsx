@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "./integrations/supabase/client";
-import { User } from '@supabase/supabase-js'; // Correctly import Supabase's User type
+import { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -20,16 +20,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) {
-        console.error("Error getting session:", error);
+        console.error("AuthContext: Error getting session:", error);
       }
       setCurrentUser(session?.user ?? null);
       setLoading(false);
+      console.log("AuthContext: Initial session loaded:", session);
     };
 
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        console.log("AuthContext: Auth state change event:", _event, "Session:", session);
         setCurrentUser(session?.user ?? null);
         setLoading(false);
       }
@@ -44,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
       if (error) throw error;
     } catch (error: any) {
-      console.error("Error during Sign-In:", error.message);
+      console.error("AuthContext: Error during Sign-In:", error.message);
       alert(`Ocorreu um erro durante o login: ${error.message}`);
     } finally {
       setLoading(false);
@@ -58,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       sessionStorage.removeItem('userRole'); // Clear role on sign out
     } catch (error: any) {
-      console.error("Error during Sign-Out:", error.message);
+      console.error("AuthContext: Error during Sign-Out:", error.message);
       alert(`Ocorreu um erro durante o logout: ${error.message}`);
     } finally {
       setLoading(false);
