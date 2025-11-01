@@ -1,16 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { User } from './types';
-
-// It is assumed that the execution environment (like AI Studio) provides
-// a global `aistudio` object with an authentication method.
-declare global {
-  interface AIStudio {
-    getAuthenticatedUser: () => Promise<User>;
-  }
-  interface Window {
-    aistudio?: AIStudio;
-  }
-}
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { supabase } from "./integrations/supabase/client";
+import { User } from '@supabase/supabase-js'; // Correctly import Supabase's User type
 
 interface AuthContextType {
   currentUser: User | null;
@@ -21,81 +11,64 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // On component mount, check sessionStorage for a logged-in user to persist session.
   useEffect(() => {
-    try {
-      const storedUser = sessionStorage.getItem('currentUser');
-      if (storedUser) {
-        setCurrentUser(JSON.parse(storedUser));
+    const getSession = async () => {
+      setLoading(true);
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("Error getting session:", error);
       }
-    } catch (error) {
-      console.error("Error reading user from sessionStorage:", error);
-      sessionStorage.removeItem('currentUser');
-    } finally {
+      setCurrentUser(session?.user ?? null);
       setLoading(false);
-    }
+    };
+
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setCurrentUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async () => {
     setLoading(true);
     try {
-      let user: User | null = null;
-      if (window.aistudio && typeof window.aistudio.getAuthenticatedUser === 'function') {
-        // Platform environment: Use the real authentication
-        user = await window.aistudio.getAuthenticatedUser();
-      } else {
-        // Local/fallback environment: Use a mock user for development
-        console.warn('Ambiente de login do Google não detectado. Usando usuário mock.');
-        user = {
-          name: 'Usuário Local',
-          email: 'vendedor.local@email.com',
-          picture: `https://api.dicebear.com/8.x/initials/svg?seed=Local`,
-        };
-      }
-      
-      if (user && user.email) {
-        sessionStorage.setItem('currentUser', JSON.stringify(user));
-        
-        // Store/update user info in a separate localStorage entry for manager view
-        try {
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '{}');
-            allUsers[user.email] = { name: user.name, picture: user.picture };
-            localStorage.setItem('allUsers', JSON.stringify(allUsers));
-        } catch (e) {
-            console.error("Failed to update allUsers in localStorage", e);
-        }
-
-        setCurrentUser(user);
-      } else {
-        throw new Error('A autenticação falhou: nenhum dado de usuário foi retornado.');
-      }
-    } catch (error) {
-      console.error("Error during Sign-In:", error);
-      alert(`Ocorreu um erro durante o login: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Error during Sign-In:", error.message);
+      alert(`Ocorreu um erro durante o login: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const signOut = async () => {
+    setLoading(true);
     try {
-      // Also clear session storage to log out completely.
-      sessionStorage.removeItem('currentUser');
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       sessionStorage.removeItem('userRole'); // Clear role on sign out
-    } catch (error) {
-        console.error("Error removing user from sessionStorage:", error);
+    } catch (error: any) {
+      console.error("Error during Sign-Out:", error.message);
+      alert(`Ocorreu um erro durante o logout: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
-    setCurrentUser(null);
   };
 
   const value = { currentUser, signIn, signOut, loading };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+}
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
