@@ -1,35 +1,79 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "./integrations/supabase/client";
+import { User } from '@supabase/supabase-js'; // Import Supabase's User type
 
-const AuthContext = createContext<any>(null);
+interface AuthContextType {
+  currentUser: User | null;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
+  loading: boolean;
+}
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data?.session?.user ?? null);
-    });
+    const getSession = async () => {
+      setLoading(true);
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("Error getting session:", error);
+      }
+      setCurrentUser(session?.user ?? null);
+      setLoading(false);
+    };
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setUser(session?.user ?? null);
+        setCurrentUser(session?.user ?? null);
+        setLoading(false);
       }
     );
 
-    return () => listener?.subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = () =>
-    supabase.auth.signInWithOAuth({ provider: "google" });
+  const signIn = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Error during Sign-In:", error.message);
+      alert(`Ocorreu um erro durante o login: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const signOut = () => supabase.auth.signOut();
+  const signOut = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      sessionStorage.removeItem('userRole'); // Clear role on sign out
+    } catch (error: any) {
+      console.error("Error during Sign-Out:", error.message);
+      alert(`Ocorreu um erro durante o logout: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  return (
-    <AuthContext.Provider value={{ user, signInWithGoogle, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = { currentUser, signIn, signOut, loading };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

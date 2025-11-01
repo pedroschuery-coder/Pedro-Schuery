@@ -10,7 +10,7 @@ import { StoreStatistics } from './components/StoreStatistics';
 import { ManagerDashboard } from './components/ManagerDashboard';
 import { LayoutDashboard, List, BarChart, Clock, Plus, Check, X, Store, Repeat, LogOut } from 'lucide-react';
 import { useAuth } from './auth';
-import { LoginScreen } from './components/LoginScreen';
+import LoginScreen from './src/components/LoginScreen'; // Updated import path
 
 
 const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
@@ -21,16 +21,16 @@ const App: React.FC = () => {
   const [fullSalesData, setFullSalesData] = useLocalStorage<FullSalesData>('fullSalesData', {});
   const [storeGoals, setStoreGoals] = useLocalStorage<{ [month: string]: number }>('storeGoalsData', {});
 
-  const salesHistory = useMemo(() => (currentUser ? fullSalesData[currentUser.email] : {}) || {}, [fullSalesData, currentUser]);
+  const salesHistory = useMemo(() => (currentUser ? fullSalesData[currentUser.email!] : {}) || {}, [fullSalesData, currentUser]);
   
   const setSalesHistory = (updater: React.SetStateAction<SalesHistory>) => {
     if (!currentUser) return;
     setFullSalesData(prevFullData => {
-      const currentHistory = prevFullData[currentUser.email] || {};
+      const currentHistory = prevFullData[currentUser.email!] || {};
       const newHistory = typeof updater === 'function' ? updater(currentHistory) : updater;
       return {
         ...prevFullData,
-        [currentUser.email]: newHistory
+        [currentUser.email!]: newHistory
       };
     });
   };
@@ -42,6 +42,7 @@ const App: React.FC = () => {
   };
   const clearRole = () => {
       sessionStorage.removeItem('userRole');
+      sessionStorage.removeItem('currentUser'); // Also clear current user from session storage
       setUserRole(null);
   }
 
@@ -51,10 +52,10 @@ const App: React.FC = () => {
   const [newMonthValue, setNewMonthValue] = useState(getCurrentMonth());
   
   useEffect(() => {
-    if (userRole === 'vendedor' && !salesHistory[activeMonth]) {
+    if (userRole === 'vendedor' && currentUser && !salesHistory[activeMonth]) {
       setSalesHistory(prev => ({ ...prev, [activeMonth]: { storeGoal: 0, dailySales: [] } }));
     }
-  }, [activeMonth, salesHistory, userRole]);
+  }, [activeMonth, salesHistory, userRole, currentUser]);
 
   const handleSetGlobalStoreGoal = (month: string, goal: number) => {
     setStoreGoals(prev => ({...prev, [month]: goal}));
@@ -95,7 +96,7 @@ const App: React.FC = () => {
   }
 
   if (!userRole) {
-    return <RoleSelectionScreen username={currentUser.name} onSelectRole={handleSetRole} />;
+    return <RoleSelectionScreen username={currentUser.user_metadata?.name || currentUser.email!} onSelectRole={handleSetRole} />;
   }
 
   const AppHeader = ({ children }: {children?: React.ReactNode}) => (
@@ -104,7 +105,7 @@ const App: React.FC = () => {
         <h1 className="text-3xl font-bold text-slate-100">Controle de Comissão</h1>
         <div className="flex items-center gap-2 sm:gap-4">
           <div className="text-right">
-            <div className="font-semibold text-slate-200">{currentUser.name}</div>
+            <div className="font-semibold text-slate-200">{currentUser.user_metadata?.name || currentUser.email}</div>
             <div className="text-xs text-slate-400">Modo: <span className="font-bold text-sky-400 capitalize">{userRole}</span></div>
           </div>
           <button onClick={clearRole} className="p-2 bg-slate-700 hover:bg-slate-600 rounded-md transition-colors" title="Trocar Perfil"><Repeat size={16} /></button>

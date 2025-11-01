@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { ProgressBar } from './ui/ProgressBar';
 import { formatCurrencyBRL } from '../utils/formatters';
 import { Target, TrendingUp, Calendar, Hash, Users, Crown, Check, X } from 'lucide-react';
+// Removed: import { User } from '@supabase/supabase-js'; // Import Supabase's User type
 
 interface ManagerDashboardProps {
   fullSalesData: FullSalesData;
@@ -47,11 +48,23 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ fullSalesDat
     
   const allUsers = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem('allUsers') || '{}');
+      // In a real app, you'd fetch this from a database. For now, we'll use a mock or cached data.
+      // The `allUsers` in localStorage was a custom implementation, let's adapt to Supabase User structure.
+      // For manager dashboard, we'll derive user info from fullSalesData keys and user_metadata if available.
+      const users: { [email: string]: { name: string, picture: string } } = {};
+      Object.keys(fullSalesData).forEach(email => {
+        // This is a placeholder. In a real app, you'd have a way to get user metadata for all users.
+        // For now, we'll use a simple derivation or a default.
+        users[email] = {
+          name: email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          picture: `https://api.dicebear.com/8.x/initials/svg?seed=${email.split('@')[0]}` 
+        };
+      });
+      return users;
     } catch {
       return {};
     }
-  }, []);
+  }, [fullSalesData]);
 
   const monthlyStats = useMemo(() => {
     const salesByDay: { [day: string]: { storeSale: number } } = {};
