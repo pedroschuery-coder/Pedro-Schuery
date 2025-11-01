@@ -41,7 +41,7 @@ const App: React.FC = () => {
   };
   const clearRole = () => {
       sessionStorage.removeItem('userRole');
-      sessionStorage.removeItem('currentUser'); // Also clear current user from session storage
+      // sessionStorage.removeItem('currentUser'); // Removido: Supabase gerencia sua própria sessão
       setUserRole(null);
   }
 
