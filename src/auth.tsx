@@ -42,12 +42,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async () => {
     setLoading(true);
+    console.log("AuthContext: Attempting Google Sign-In...");
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
-      if (error) throw error;
+      const { data, error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+      if (error) {
+        console.error("AuthContext: Error during Google Sign-In (Supabase response):", error);
+        throw error;
+      }
+      console.log("AuthContext: Google Sign-In initiated, data:", data);
     } catch (error: any) {
-      console.error("AuthContext: Error during Sign-In:", error.message);
-      alert(`Ocorreu um erro durante o login: ${error.message}`);
+      console.error("AuthContext: Error during Google Sign-In (catch block):", error.message);
+      alert(`Ocorreu um erro durante o login com Google: ${error.message}`);
     } finally {
       setLoading(false);
     }
