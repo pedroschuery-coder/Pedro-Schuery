@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface ProgressBarProps {
@@ -16,7 +15,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ percentage }) => {
   };
 
   return (
-    <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden border border-slate-600">
+    <div className="w-full bg-slate-700 rounded-full h-5 overflow-hidden border border-slate-600">
       <div
         className={`bg-gradient-to-r ${getGradient()} h-full rounded-full transition-all duration-500 ease-out`}
         style={{ width: `${clampedPercentage}%` }}

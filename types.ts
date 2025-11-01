@@ -21,12 +21,15 @@ export interface SalesHistory {
 }
 
 // New types for multi-user support
-export interface User {
-  email: string;
-  name: string;
-  picture: string;
-}
-
 export interface FullSalesData {
   [email: string]: SalesHistory;
+}
+
+export type UserRole = 'vendedor' | 'gestor';
+
+// Fix: Add and export the User interface, which is used in auth.tsx.
+export interface User {
+  name: string;
+  email: string;
+  picture: string;
 }

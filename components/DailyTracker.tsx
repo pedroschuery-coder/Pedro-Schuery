@@ -4,20 +4,20 @@ import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { formatCurrencyBRL } from '../utils/formatters';
-import { PlusCircle, Trash2, List } from 'lucide-react';
+import { PlusCircle, Pencil, List, Save, XCircle } from 'lucide-react';
 
 interface DailyTrackerProps {
   addSale: (sale: { individualSale: number; storeSale: number; date: string }) => void;
   dailySales: DailySale[];
-  deleteSale: (id: number) => void;
+  updateSale: (id: number, data: { individualSale: number; storeSale: number; date: string }) => void;
   activeMonth: string; // "YYYY-MM"
 }
 
-export const DailyTracker: React.FC<DailyTrackerProps> = ({ addSale, dailySales, deleteSale, activeMonth }) => {
+export const DailyTracker: React.FC<DailyTrackerProps> = ({ addSale, dailySales, updateSale, activeMonth }) => {
   const [individualSale, setIndividualSale] = useState('');
   const [storeSale, setStoreSale] = useState('');
+  const [editingSaleId, setEditingSaleId] = useState<number | null>(null);
   
-  // Helper to get today's date in YYYY-MM-DD format
   const getTodayString = () => new Date().toISOString().slice(0, 10);
   
   const [saleDate, setSaleDate] = useState(getTodayString());
@@ -29,16 +29,38 @@ export const DailyTracker: React.FC<DailyTrackerProps> = ({ addSale, dailySales,
     return { minDate: firstDay, maxDate: lastDay };
   }, [activeMonth]);
 
-  // Effect to reset date if it falls outside the new active month's range
-  useEffect(() => {
+  const resetDate = () => {
     const today = getTodayString();
     if (today >= minDate && today <= maxDate) {
       setSaleDate(today);
     } else {
-      setSaleDate(maxDate); // Default to the last day of the active month if today is not in it
+      setSaleDate(maxDate);
     }
-  }, [minDate, maxDate]);
+  };
 
+  useEffect(() => {
+    if (!editingSaleId) {
+      resetDate();
+    }
+  }, [minDate, maxDate, editingSaleId]);
+
+  const resetForm = () => {
+    setIndividualSale('');
+    setStoreSale('');
+    setEditingSaleId(null);
+    resetDate();
+  };
+
+  const handleEditClick = (sale: DailySale) => {
+    setEditingSaleId(sale.id);
+    setIndividualSale(sale.individualSale.toString());
+    setStoreSale(sale.storeSale.toString());
+    setSaleDate(sale.date);
+  };
+  
+  const handleCancelEdit = () => {
+    resetForm();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,13 +68,18 @@ export const DailyTracker: React.FC<DailyTrackerProps> = ({ addSale, dailySales,
     const strSale = parseFloat(storeSale);
 
     if (!isNaN(indSale) && indSale > 0 && !isNaN(strSale) && strSale > 0 && saleDate) {
-      addSale({
+      const saleData = {
         individualSale: indSale,
         storeSale: strSale,
         date: saleDate,
-      });
-      setIndividualSale('');
-      setStoreSale('');
+      };
+      
+      if (editingSaleId !== null) {
+        updateSale(editingSaleId, saleData);
+      } else {
+        addSale(saleData);
+      }
+      resetForm();
     } else {
         alert('Por favor, preencha todos os campos com valores numéricos positivos.');
     }
@@ -62,16 +89,12 @@ export const DailyTracker: React.FC<DailyTrackerProps> = ({ addSale, dailySales,
     return [...dailySales].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [dailySales]);
 
-  const handleDeleteClick = (saleId: number) => {
-    if (window.confirm('Tem certeza que deseja excluir este lançamento?')) {
-      deleteSale(saleId);
-    }
-  };
 
   return (
     <Card className="flex flex-col h-full">
       <h2 className="text-2xl font-bold text-slate-200 mb-4 flex items-center gap-2">
-        <List size={24} /> Lançamentos Diários
+        <List size={24} /> 
+        {editingSaleId ? 'Editar Lançamento' : 'Lançamentos Diários'}
       </h2>
       
       <form onSubmit={handleSubmit} className="space-y-4 mb-6 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
@@ -114,9 +137,16 @@ export const DailyTracker: React.FC<DailyTrackerProps> = ({ addSale, dailySales,
             required
           />
         </div>
-        <Button type="submit" className="w-full">
-          <PlusCircle size={16} /> Adicionar Lançamento
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+            <Button type="submit" className="w-full">
+                {editingSaleId ? <><Save size={16} /> Salvar Alterações</> : <><PlusCircle size={16} /> Adicionar Lançamento</>}
+            </Button>
+            {editingSaleId && (
+                <Button type="button" variant="secondary" onClick={handleCancelEdit} className="w-full sm:w-auto">
+                    <XCircle size={16}/> Cancelar
+                </Button>
+            )}
+        </div>
       </form>
       
       <div className="flex-grow overflow-y-auto space-y-3 pr-2 -mr-2" style={{maxHeight: '400px'}}>
@@ -126,7 +156,7 @@ export const DailyTracker: React.FC<DailyTrackerProps> = ({ addSale, dailySales,
           </div>
         ) : (
           sortedSales.map(sale => (
-            <div key={sale.id} className="flex items-center justify-between bg-slate-700/50 p-3 rounded-md transition-colors hover:bg-slate-700">
+            <div key={sale.id} className={`flex items-center justify-between p-3 rounded-md transition-all duration-300 ${editingSaleId === sale.id ? 'bg-sky-900/50 ring-2 ring-sky-500' : 'bg-slate-700/50 hover:bg-slate-700'}`}>
               <div>
                 <p className="font-semibold text-slate-200">{new Date(sale.date).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit' })}</p>
                 <div className="text-sm text-slate-400 mt-1 space-y-1">
@@ -138,8 +168,14 @@ export const DailyTracker: React.FC<DailyTrackerProps> = ({ addSale, dailySales,
                     </p>
                 </div>
               </div>
-              <Button variant="danger" onClick={() => handleDeleteClick(sale.id)} className="!p-2 h-8 w-8 min-w-0 flex-shrink-0">
-                <Trash2 size={16} />
+              <Button
+                  variant="secondary"
+                  onClick={() => handleEditClick(sale)}
+                  aria-label="Editar lançamento"
+                  className="p-2 h-8 w-8 flex-shrink-0"
+                  disabled={editingSaleId === sale.id}
+                >
+                <Pencil size={16} />
               </Button>
             </div>
           ))

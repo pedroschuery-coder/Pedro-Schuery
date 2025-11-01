@@ -3,7 +3,6 @@ import type { User } from './types';
 
 // It is assumed that the execution environment (like AI Studio) provides
 // a global `aistudio` object with an authentication method.
-// Fix: Correctly define and augment global types for `window.aistudio` to resolve type conflicts.
 declare global {
   interface AIStudio {
     getAuthenticatedUser: () => Promise<User>;
@@ -53,13 +52,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.warn('Ambiente de login do Google não detectado. Usando usuário mock.');
         user = {
           name: 'Usuário Local',
-          email: 'usuario@exemplo.com',
+          email: 'vendedor.local@email.com',
           picture: `https://api.dicebear.com/8.x/initials/svg?seed=Local`,
         };
       }
       
       if (user && user.email) {
         sessionStorage.setItem('currentUser', JSON.stringify(user));
+        
+        // Store/update user info in a separate localStorage entry for manager view
+        try {
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '{}');
+            allUsers[user.email] = { name: user.name, picture: user.picture };
+            localStorage.setItem('allUsers', JSON.stringify(allUsers));
+        } catch (e) {
+            console.error("Failed to update allUsers in localStorage", e);
+        }
+
         setCurrentUser(user);
       } else {
         throw new Error('A autenticação falhou: nenhum dado de usuário foi retornado.');
@@ -76,6 +85,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // Also clear session storage to log out completely.
       sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('userRole'); // Clear role on sign out
     } catch (error) {
         console.error("Error removing user from sessionStorage:", error);
     }

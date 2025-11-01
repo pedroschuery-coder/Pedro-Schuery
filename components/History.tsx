@@ -7,9 +7,10 @@ import { Calendar } from 'lucide-react';
 
 interface HistoryProps {
   salesHistory: SalesHistory;
+  storeGoals: { [month: string]: number };
 }
 
-export const History: React.FC<HistoryProps> = ({ salesHistory }) => {
+export const History: React.FC<HistoryProps> = ({ salesHistory, storeGoals }) => {
   const sortedMonths = Object.keys(salesHistory).sort().reverse();
 
   if (sortedMonths.length === 0) {
@@ -33,9 +34,10 @@ export const History: React.FC<HistoryProps> = ({ salesHistory }) => {
           const monthData = salesHistory[month];
           if (!monthData) return null;
 
+          const storeGoal = storeGoals[month] || 0;
           const { totalIndividual, totalStore } = calculateMonthlyTotals(monthData.dailySales);
-          const commissionResult = calculateCommission(totalIndividual, totalStore, monthData.storeGoal);
-          const storeGoalPercentage = monthData.storeGoal > 0 ? (totalStore / monthData.storeGoal) * 100 : 0;
+          const commissionResult = calculateCommission(totalIndividual, totalStore, storeGoal);
+          const storeGoalPercentage = storeGoal > 0 ? (totalStore / storeGoal) * 100 : 0;
           const contributionPercentage = totalStore > 0 ? (totalIndividual / totalStore) * 100 : 0;
 
           return (
@@ -46,7 +48,7 @@ export const History: React.FC<HistoryProps> = ({ salesHistory }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-slate-400">Meta da Loja</p>
-                  <p className="font-bold text-slate-200">{formatCurrencyBRL(monthData.storeGoal)}</p>
+                  <p className="font-bold text-slate-200">{formatCurrencyBRL(storeGoal)}</p>
                 </div>
                 <div>
                   <p className="text-slate-400">Vendas da Loja</p>

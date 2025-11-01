@@ -8,6 +8,7 @@ import { BarChart, TrendingUp, Calendar, Hash, Trophy, DollarSign, Percent } fro
 interface StatisticsProps {
   salesHistory: SalesHistory;
   activeMonth: string;
+  storeGoals: { [month: string]: number };
 }
 
 const StatCard: React.FC<{ title: string; value: string | number; icon: React.ReactNode }> = ({ title, value, icon }) => (
@@ -23,13 +24,14 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.Re
 );
 
 
-export const Statistics: React.FC<StatisticsProps> = ({ salesHistory, activeMonth }) => {
+export const Statistics: React.FC<StatisticsProps> = ({ salesHistory, activeMonth, storeGoals }) => {
   const activeMonthData = useMemo(() => {
     return salesHistory[activeMonth] || { storeGoal: 0, dailySales: [] };
   }, [salesHistory, activeMonth]);
 
+  const activeMonthGoal = storeGoals[activeMonth] || 0;
   const { totalIndividual, totalStore } = calculateMonthlyTotals(activeMonthData.dailySales);
-  const commissionResult = calculateCommission(totalIndividual, totalStore, activeMonthData.storeGoal);
+  const commissionResult = calculateCommission(totalIndividual, totalStore, activeMonthGoal);
 
   const allTimeStats = useMemo(() => {
     let totalSalesOverall = 0;
@@ -46,7 +48,8 @@ export const Statistics: React.FC<StatisticsProps> = ({ salesHistory, activeMont
       totalEntries += monthData.dailySales.length;
 
       const { totalIndividual: monthIndividual, totalStore: monthStore } = calculateMonthlyTotals(monthData.dailySales);
-      const { amount: monthCommission } = calculateCommission(monthIndividual, monthStore, monthData.storeGoal);
+      const monthGoal = storeGoals[month] || 0;
+      const { amount: monthCommission } = calculateCommission(monthIndividual, monthStore, monthGoal);
 
       totalSalesOverall += monthIndividual;
       totalCommissionOverall += monthCommission;
@@ -66,10 +69,11 @@ export const Statistics: React.FC<StatisticsProps> = ({ salesHistory, activeMont
       totalMonths,
       totalEntries
     };
-  }, [salesHistory]);
+  }, [salesHistory, storeGoals]);
 
   const activeMonthStats = useMemo(() => {
-    const salesDays = activeMonthData.dailySales.length;
+    const uniqueSaleDays = new Set(activeMonthData.dailySales.map(s => s.date));
+    const salesDays = uniqueSaleDays.size;
     const averageDailySale = salesDays > 0 ? totalIndividual / salesDays : 0;
     
     let bestDay = { date: '', sales: 0 };

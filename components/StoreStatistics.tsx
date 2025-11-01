@@ -7,6 +7,7 @@ import { TrendingUp, DollarSign, Trophy, Calendar, Users } from 'lucide-react';
 
 interface StoreStatisticsProps {
   fullSalesData: FullSalesData;
+  storeGoals: { [month: string]: number };
 }
 
 const StatCard: React.FC<{ title: string; value: string | number; icon: React.ReactNode }> = ({ title, value, icon }) => (
@@ -21,42 +22,63 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.Re
   </div>
 );
 
-export const StoreStatistics: React.FC<StoreStatisticsProps> = ({ fullSalesData }) => {
+export const StoreStatistics: React.FC<StoreStatisticsProps> = ({ fullSalesData, storeGoals }) => {
   const storeStats = useMemo(() => {
-    const monthlyAggregates: { [month: string]: { totalStore: number, totalIndividual: number, totalCommission: number, activeSellers: number } } = {};
-    let grandTotalStoreSales = 0;
-    let grandTotalIndividualSales = 0;
-    let grandTotalCommission = 0;
+    const monthlyAggregates: { 
+      [month: string]: { 
+        totalStore: number;
+        totalIndividual: number; 
+        totalCommission: number; 
+        activeSellers: number;
+      } 
+    } = {};
 
+    const allMonths = [...new Set(Object.values(fullSalesData).flatMap(userHistory => Object.keys(userHistory)))];
+    
+    allMonths.forEach(month => {
+        monthlyAggregates[month] = { totalStore: 0, totalIndividual: 0, totalCommission: 0, activeSellers: 0 };
+    });
+
+    // 1. Calculate correct totalStore sales for each month by de-duplicating daily store sales across all users.
+    allMonths.forEach(month => {
+        const salesByDay: { [day: string]: number } = {};
+        Object.values(fullSalesData).forEach(userHistory => {
+            if (userHistory[month]) {
+                userHistory[month].dailySales.forEach(sale => {
+                    salesByDay[sale.date] = Math.max(salesByDay[sale.date] || 0, sale.storeSale);
+                });
+            }
+        });
+        monthlyAggregates[month].totalStore = Object.values(salesByDay).reduce((sum, day) => sum + day, 0);
+    });
+
+    // 2. Iterate through each user to calculate their contributions and aggregate them.
     Object.values(fullSalesData).forEach(userHistory => {
-      Object.entries(userHistory).forEach(([month, monthData]) => {
-        if (!monthlyAggregates[month]) {
-          monthlyAggregates[month] = { totalStore: 0, totalIndividual: 0, totalCommission: 0, activeSellers: 0 };
-        }
-        
-        const { totalIndividual, totalStore } = calculateMonthlyTotals(monthData.dailySales);
-        const { amount: commission } = calculateCommission(totalIndividual, totalStore, monthData.storeGoal);
+        Object.entries(userHistory).forEach(([month, monthData]) => {
+            if (monthData.dailySales.length > 0) {
+                const { totalIndividual } = calculateMonthlyTotals(monthData.dailySales);
+                
+                monthlyAggregates[month].totalIndividual += totalIndividual;
+                monthlyAggregates[month].activeSellers += 1;
 
-        // NOTE: We sum `totalStore` from each user's perspective. For accurate total store sales,
-        // this assumes each user logs the *same* total store sales for a given day.
-        // A more robust system would have a separate data structure for store-wide sales.
-        monthlyAggregates[month].totalStore += totalStore;
-        monthlyAggregates[month].totalIndividual += totalIndividual;
-        monthlyAggregates[month].totalCommission += commission;
-        if (monthData.dailySales.length > 0) {
-            monthlyAggregates[month].activeSellers += 1;
-        }
-      });
+                const monthGoal = storeGoals[month] || 0;
+                const correctTotalStore = monthlyAggregates[month].totalStore;
+                const { amount: commission } = calculateCommission(totalIndividual, correctTotalStore, monthGoal);
+                
+                monthlyAggregates[month].totalCommission += commission;
+            }
+        });
     });
 
-    // To get accurate totals, we sum the aggregated monthly values to avoid double-counting store sales.
-    Object.values(monthlyAggregates).forEach(data => {
-        grandTotalStoreSales += data.totalStore;
-        grandTotalIndividualSales += data.totalIndividual;
-        grandTotalCommission += data.totalCommission;
-    });
+    // 3. Calculate grand totals from the corrected monthly aggregates
+    const grandTotals = Object.values(monthlyAggregates).reduce((acc, data) => {
+        acc.grandTotalStoreSales += data.totalStore;
+        acc.grandTotalIndividualSales += data.totalIndividual;
+        acc.grandTotalCommission += data.totalCommission;
+        return acc;
+    }, { grandTotalStoreSales: 0, grandTotalIndividualSales: 0, grandTotalCommission: 0 });
 
-
+    // 4. Find the best month based on total store sales
     let bestMonth = { month: '', sales: 0 };
     Object.entries(monthlyAggregates).forEach(([month, data]) => {
       if (data.totalStore > bestMonth.sales) {
@@ -66,12 +88,10 @@ export const StoreStatistics: React.FC<StoreStatisticsProps> = ({ fullSalesData 
 
     return {
       monthlyAggregates,
-      grandTotalStoreSales,
-      grandTotalIndividualSales,
-      grandTotalCommission,
+      ...grandTotals,
       bestMonth,
     };
-  }, [fullSalesData]);
+  }, [fullSalesData, storeGoals]);
 
   const sortedMonths = Object.keys(storeStats.monthlyAggregates).sort().reverse();
 
