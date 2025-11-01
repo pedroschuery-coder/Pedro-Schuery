@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "./integrations/supabase/client";
-import { User } from '@supabase/supabase-js'; // Correctly import Supabase's User type
+import { supabase } from "./src/integrations/supabase/client"; // Caminho corrigido
+import { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   currentUser: User | null;

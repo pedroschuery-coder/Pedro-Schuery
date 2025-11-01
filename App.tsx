@@ -10,7 +10,7 @@ import { StoreStatistics } from './components/StoreStatistics';
 import { ManagerDashboard } from './components/ManagerDashboard';
 import { LayoutDashboard, List, BarChart, Clock, Plus, Check, X, Store, Repeat, LogOut } from 'lucide-react';
 import { useAuth } from './auth';
-import LoginScreen from './components/LoginScreen'; // Caminho de importação corrigido
+import LoginScreen from './src/components/LoginScreen'; // Caminho de importação corrigido
 
 const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
 
